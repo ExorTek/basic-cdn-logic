@@ -1,0 +1,9 @@
+.yarn/install-state.gz
+node_modules
+yarn-debug.log*
+yarn-error.log*
+logs
+.idea
+.vscode
+.DS_Store
+npm-debug.log*
