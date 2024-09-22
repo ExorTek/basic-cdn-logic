@@ -2,6 +2,8 @@ const express = require('express');
 const axios = require('axios');
 const NodeCache = require('node-cache');
 const compression = require('compression');
+const cluster = require('node:cluster');
+const { availableParallelism } = require('node:os');
 
 const ORIGIN_SERVER = 'http://localhost:5000';
 const PORT = 5001;
@@ -47,6 +49,26 @@ app.get('/stats', (req, res) => {
   res.json(stats);
 });
 
-app.listen(PORT, () => {
-  console.log(`CDN server running at http://localhost:${PORT}`);
-});
+
+if (cluster.isMaster) {
+  const numWorkers = availableParallelism();
+  console.log(`Master cluster setting up ${numWorkers} workers...`);
+
+  for (let i = 0; i < numWorkers; i++) {
+    cluster.fork();
+  }
+
+  cluster.on('online', (worker) => {
+    console.log(`CDN Server worker ${worker.process.pid} is online`);
+  });
+
+  cluster.on('exit', (worker, code, signal) => {
+    console.log(`Worker ${worker.process.pid} died with code: ${code}, signal: ${signal}. Restarting...`);
+    cluster.fork();
+  });
+
+} else {
+  app.listen(PORT, () => {
+    console.log(`CDN Server worker ${process.pid} listening on: http://localhost:${PORT}`);
+  });
+}
